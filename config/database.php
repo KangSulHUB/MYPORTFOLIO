@@ -87,7 +87,19 @@ return [
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('POSTGRES_URL', env('DB_URL')),
-            'host' => env('POSTGRES_HOST', env('DB_HOST', '127.0.0.1')),
+            'url' => (function () {
+                $url = env('POSTGRES_URL', env('DB_URL'));
+                $host = env('POSTGRES_HOST', env('DB_HOST', '127.0.0.1'));
+                $endpoint = explode('.', $host)[0];
+            
+                if (!$url) {
+                    return null;
+                }
+            
+                $separator = str_contains($url, '?') ? '&' : '?';
+            
+                return $url . $separator . 'options=endpoint%3D' . $endpoint;
+            })(),
             'port' => env('POSTGRES_PORT', env('DB_PORT', '5432')),
             'database' => env('POSTGRES_DATABASE', env('DB_DATABASE', 'laravel')),
             'username' => env('POSTGRES_USER', env('DB_USERNAME', 'root')),
