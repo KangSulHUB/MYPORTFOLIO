@@ -1,52 +1,63 @@
-# =========================
-# 1. Build frontend
-# =========================
-FROM node:22-bookworm-slim AS frontend
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-
-RUN npm ci
-
-COPY resources ./resources
-COPY public ./public
-COPY vite.config.js ./
-
-RUN npm run build
-
-
-# =========================
-# 2. Laravel + FrankenPHP
-# =========================
 FROM dunglas/frankenphp:php8.5-bookworm
 
 WORKDIR /app
 
+# PHP extensions required by Laravel
 RUN install-php-extensions \
     pdo_pgsql \
-    opcache
+    opcache \
+    mbstring \
+    xml \
+    curl \
+    zip \
+    intl \
+    bcmath
 
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-COPY . .
+# Composer dependencies
+COPY composer.json composer.lock ./
 
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
-    --optimize-autoloader
+    --optimize-autoloader \
+    --no-scripts
 
-COPY --from=frontend /app/public/build ./public/build
+# Node
+COPY package.json package-lock.json ./
+
+RUN apt-get update \
+    && apt-get install -y nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm ci
+
+# Application
+COPY . .
+
+# Frontend
+RUN npm run build
+
+# Laravel
+RUN php artisan optimize:clear
 
 RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
-    storage/logs
+    storage/logs \
+    bootstrap/cache
 
-RUN chown -R www-data:www-data storage bootstrap/cache
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
+
+# Run Laravel package discovery after application is present
+RUN composer dump-autoload --optimize --no-dev
 
 EXPOSE 80
 
-CMD ["frankenphp", "php-server", "--listen", "0.0.0.0:80", "--root", "public"]s
+CMD ["frankenphp", "php-server", "--listen", "0.0.0.0:80", "--root", "public"]
