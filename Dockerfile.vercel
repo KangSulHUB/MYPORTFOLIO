@@ -15,6 +15,9 @@ COPY vite.config.js ./
 
 RUN npm run build
 
+RUN echo "=== VITE BUILD OUTPUT ===" \
+    && find /app/public/build -maxdepth 2 -type f -print
+
 
 # =========================
 # LARAVEL / PHP
@@ -29,11 +32,21 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./
 
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
 
 COPY . .
 
 COPY --from=frontend /app/public/build ./public/build
+
+RUN echo "=== CHECK BUILD ASSETS ===" \
+    && find /app/public/build -maxdepth 2 -type f -print \
+    && echo "=== CHECK CSS ===" \
+    && ls -lah /app/public/build/assets
 
 RUN php artisan package:discover --ansi
 
