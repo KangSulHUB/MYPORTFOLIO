@@ -37,8 +37,6 @@ COPY --from=frontend /app/public/build ./public/build
 
 RUN php artisan package:discover --ansi
 
-RUN php artisan optimize:clear
-
 RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
